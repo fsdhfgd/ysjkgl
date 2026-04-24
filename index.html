@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>接口管理系统 - 用户独立多仓版（App兼容）</title>
+<style>
+/* 全局样式重置 */
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui, -apple-system, sans-serif}
+body{background:#f5f7fa;padding:20px}
+.container{max-width:900px;margin:0 auto}
+
+/* 登录/注册/找回密码 通用样式 */
+.auth-box{max-width:420px;margin:80px auto;background:#fff;padding:40px;border-radius:12px;box-shadow:0 2px 15px rgba(0,0,0,0.05)}
+.auth-box h2{text-align:center;margin-bottom:30px;color:#333;font-size:22px}
+.form-item{margin-bottom:20px}
+.form-item label{display:block;margin-bottom:8px;color:#666;font-size:14px}
+.form-item input{width:100%;padding:12px 15px;border:1px solid #e5e7eb;border-radius:8px;font-size:16px;transition:border 0.2s}
+.form-item input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+.btn{width:100%;padding:12px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;transition:background 0.2s}
+.btn:hover{background:#2563eb}
+.tip-bar{text-align:center;margin-top:20px;font-size:14px}
+.tip-bar a{color:#3b82f6;text-decoration:none;margin:0 8px}
+.error-tip{color:#ef4444;text-align:center;margin-top:10px;font-size:14px;display:none}
+.success-tip{color:#22c55e;text-align:center;margin-top:10px;font-size:14px;display:none}
+
+/* 管理页样式 */
+.manage-page{display:none}
+.page-header{margin-bottom:24px}
+.title{font-size:24px;color:#1f2937;margin-bottom:8px}
+.sub-title{color:#6b7280;font-size:14px}
+
+/* 用户信息卡片 */
+.user-info-card{background:#e8f4ff;border-left:4px solid #3b82f6;padding:16px;border-radius:8px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.user-info-card .info{font-size:14px;color:#374151}
+.user-info-card .info span{font-weight:500}
+.logout-btn{background:#6b7280;color:#fff;border:none;border-radius:6px;padding:8px 12px;cursor:pointer;font-size:14px}
+.logout-btn:hover{background:#4b5563}
+
+/* 专属多仓地址卡片 */
+.url-card{background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:16px;margin-bottom:20px}
+.url-label{font-size:14px;color:#0369a1;font-weight:500;margin-bottom:8px}
+.url-text{font-size:14px;color:#1e293b;word-break:break-all;padding:8px;background:#fff;border-radius:4px;border:1px solid #e0f2fe}
+
+/* 功能卡片通用样式 */
+.card{background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.05);margin-bottom:20px}
+.card h2{font-size:18px;color:#1f2937;margin-bottom:20px;display:flex;align-items:center}
+.card h2::before{content:"";width:4px;height:18px;background:#3b82f6;margin-right:8px;border-radius:2px}
+
+/* 表单行/列样式 */
+.form-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.form-col{flex:1;min-width:220px}
+.form-col label{font-size:14px;color:#374151;margin-bottom:8px;display:block}
+.form-col input,.form-col select{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px}
+
+/* 小按钮样式 */
+.btn-sm{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;transition:background 0.2s}
+.btn-add{background:#22c55e;color:#fff}
+.btn-add:hover{background:#16a34a}
+.btn-save{background:#3b82f6;color:#fff}
+.btn-save:hover{background:#2563eb}
+.btn-del{background:#ef4444;color:#fff}
+.btn-del:hover{background:#dc2626}
+.btn-toggle{background:#64748b;color:#fff}
+.btn-toggle:hover{background:#475569}
+.btn-reset{background:#f59e0b;color:#fff}
+.btn-reset:hover{background:#d97706}
+
+/* 用户管理表格 */
+.table-container{overflow-x:auto;margin-top:10px}
+.user-table{width:100%;border-collapse:collapse}
+.user-table th,.user-table td{padding:12px;text-align:left;border-bottom:1px solid #f3f4f6}
+.user-table th{background:#f9fafb;color:#374151;font-weight:500}
+.user-table tr:hover{background:#f9fafb}
+
+/* 接口列表样式 */
+.api-item{padding:12px 0;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center}
+.api-item:last-child{border-bottom:none}
+.api-item .content{flex:1}
+.api-item .name{font-weight:500;margin-bottom:4px}
+.api-item .desc{color:#6b7280;font-size:14px;word-break:break-all}
+
+/* 状态标签 */
+.status-tag{font-size:12px;padding:3px 8px;border-radius:4px}
+.status-pending{background:#fef3c7;color:#92400e}
+.status-approved{background:#dcfce7;color:#166534}
+.status-disabled{background:#e5e7eb;color:#4b5563}
+</style>
+</head>
+<body>
+
+<!-- 1. 登录页面 -->
+<div class="auth-box" id="loginBox">
+  <h2>接口管理系统 - 登录</h2>
+  <div class="form-item">
+    <label>用户名</label>
+    <input id="loginUser" placeholder="请输入用户名">
+  </div>
+  <div class="form-item">
+    <label>密码</label>
+    <input type="password" id="loginPwd" placeholder="请输入密码">
+  </div>
+  <button class="btn" onclick="handleLogin()">登录</button>
+  <div class="tip-bar">
+    <a onclick="switchToRegister()">注册账号</a>｜<a onclick="switchToFindPwd()">找回密码</a>
+  </div>
+  <div class="error-tip" id="loginError">用户名或密码错误，或账号未审核通过</div>
+</div>
+
+<!-- 2. 注册页面 -->
+<div class="auth-box" id="registerBox" style="display:none">
+  <h2>接口管理系统 - 注册</h2>
+  <div class="form-item">
+    <label>用户名</label>
+    <input id="regUser" placeholder="仅支持字母/数字，例：test123">
+  </div>
+  <div class="form-item">
+    <label>密码</label>
+    <input type="password" id="regPwd" placeholder="设置登录密码">
+  </div>
+  <div class="form-item">
+    <label>QQ号</label>
+    <input id="regQq" placeholder="用于找回密码，仅数字">
+  </div>
+  <button class="btn" onclick="handleRegister()">提交注册</button>
+  <div class="tip-bar">
+    <a onclick="switchToLogin()">返回登录</a>
+  </div>
+  <div class="error-tip" id="regError"></div>
+  <div class="success-tip" id="regSuccess">注册成功！请等待管理员审核</div>
+</div>
+
+<!-- 3. 找回密码页面 -->
+<div class="auth-box" id="findPwdBox" style="display:none">
+  <h2>接口管理系统 - 找回密码</h2>
+  <div class="form-item">
+    <label>用户名</label>
+    <input id="findUser" placeholder="注册时的用户名">
+  </div>
+  <div class="form-item">
+    <label>绑定的QQ号</label>
+    <input id="findQq" placeholder="注册时填写的QQ号">
+  </div>
+  <div class="form-item">
+    <label>新密码</label>
+    <input type="password" id="findNewPwd" placeholder="设置新的登录密码">
+  </div>
+  <button class="btn" onclick="handleFindPwd()">重置密码</button>
+  <div class="tip-bar">
+    <a onclick="switchToLogin()">返回登录</a>
+  </div>
+  <div class="error-tip" id="findError"></div>
+  <div class="success-tip" id="findSuccess">密码重置成功！</div>
+</div>
+
+<!-- 4. 管理主页面 -->
+<div class="container manage-page" id="managePage">
+  <div class="page-header">
+    <div class="title">接口管理系统 - 用户独立多仓版（App兼容）</div>
+    <div class="sub-title">每个用户拥有专属接口仓库，可直接在影视App中使用</div>
+  </div>
+
+  <!-- 用户信息卡片 -->
+  <div class="user-info-card">
+    <div class="info">
+      登录账号：<span id="currentUser">--</span>｜
+      QQ号：<span id="currentQq">--</span>｜
+      账号状态：<span id="currentStatus">--</span>
+    </div>
+    <button class="logout-btn" onclick="handleLogout()">退出登录</button>
+  </div>
+
+  <!-- 专属多仓地址 -->
+  <div class="url-card">
+    <div class="url-label">你的专属多仓地址（可直接复制到影视App使用）：</div>
+    <div class="url-text" id="myMultiUrl">加载中...</div>
+  </div>
+
+  <!-- 4.1 修改密码（所有用户可见） -->
+  <div class="card">
+    <h2>修改个人密码</h2>
+    <div class="form-row">
+      <div class="form-col">
+        <label>旧密码</label>
+        <input type="password" id="oldPwd" placeholder="请输入当前登录密码">
+      </div>
+      <div class="form-col">
+        <label>新密码</label>
+        <input type="password" id="newPwd" placeholder="请设置新密码">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-col">
+        <label>确认新密码</label>
+        <input type="password" id="confirmPwd" placeholder="请再次输入新密码">
+      </div>
+    </div>
+    <button class="btn-sm btn-save" onclick="handleChangePwd()">保存新密码</button>
+    <div class="error-tip" id="changePwdError"></div>
+    <div class="success-tip" id="changePwdSuccess">密码修改成功！下次登录生效</div>
+  </div>
+
+  <!-- 4.2 用户管理（仅超级管理员可见） -->
+  <div class="card" id="userManageCard" style="display:none">
+    <h2>用户管理中心</h2>
+    <div class="form-row">
+      <div class="form-col">
+        <label>搜索用户</label>
+        <input id="searchUser" placeholder="输入用户名/QQ搜索" oninput="loadUserList()">
+      </div>
+      <div class="form-col">
+        <label>状态筛选</label>
+        <select id="statusFilter" onchange="loadUserList()">
+          <option value="all">全部状态</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="disabled">已禁用</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-container">
+      <table class="user-table">
+        <thead>
+          <tr>
+            <th>用户名</th>
+            <th>QQ号</th>
+            <th>账号状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody">
+          <tr><td colspan="4" style="text-align:center;color:#999">暂无用户数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 4.3 添加/修改专属接口（所有用户可见） -->
+  <div class="card">
+    <h2>添加/修改专属接口</h2>
+    <div class="form-row">
+      <div class="form-col">
+        <label>接口名称</label>
+        <input id="apiName" placeholder="例：测试接口、资源接口">
+      </div>
+      <div class="form-col">
+        <label>接口URL</label>
+        <input id="apiUrl" placeholder="https://xxx.com">
+      </div>
+    </div>
+    <button class="btn-sm btn-add" onclick="addApi()">+ 添加接口</button>
+  </div>
+
+  <!-- 4.4 我的专属接口列表（带数量和编辑功能） -->
+  <div class="card">
+    <h2>我的专属接口列表 <span id="apiCount" style="color:#3b82f6; font-size:14px; margin-left:8px;">(0)</span></h2>
+    <div id="apiList"></div>
+  </div>
+</div>
+
+<script>
+// ====================== 核心配置（已适配你的Worker地址） ======================
+const WORKER = "https://jgjhg.jiangqtr.dpdns.org"; // 你的Worker地址，无需修改
+const SUPER_ADMIN = "fg01"; // 超级管理员初始账号（固定）
+const SUPER_PWD = "w159357w"; // 超级管理员初始密码（可自行修改）
+// ================================================================================
+
+// 初始化系统（创建默认超级管理员）
+function initSystem() {
+  let users = JSON.parse(localStorage.getItem("sys_users") || "[]");
+  // 检查超级管理员是否存在，不存在则创建
+  if (!users.some(u => u.username === SUPER_ADMIN && u.isSuper)) {
+    users.push({
+      username: SUPER_ADMIN,
+      password: SUPER_PWD,
+      qq: "000000",
+      isSuper: true,
+      status: "approved" // approved-已通过 pending-待审核 disabled-已禁用
+    });
+    localStorage.setItem("sys_users", JSON.stringify(users));
+  }
+  return users;
+}
+
+// 页面切换函数
+function switchToLogin() {
+  hideAllAuthBoxes();
+  document.getElementById("loginBox").style.display = "block";
+  clearAllTips();
+}
+function switchToRegister() {
+  hideAllAuthBoxes();
+  document.getElementById("registerBox").style.display = "block";
+  clearAllTips();
+}
+function switchToFindPwd() {
+  hideAllAuthBoxes();
+  document.getElementById("findPwdBox").style.display = "block";
+  clearAllTips();
+}
+function hideAllAuthBoxes() {
+  document.querySelectorAll(".auth-box").forEach(el => el.style.display = "none");
+}
+function clearAllTips() {
+  // 清空所有错误/成功提示
+  document.querySelectorAll(".error-tip, .success-tip").forEach(el => {
+    el.style.display = "none";
+    el.innerText = "";
+  });
+}
+
+// 登录处理
+function handleLogin() {
+  clearAllTips();
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPwd").value.trim();
+  
+  if (!username || !password) {
+    document.getElementById("loginError").innerText = "请填写用户名和密码";
+    document.getElementById("loginError").style.display = "block";
+    return;
+  }
+
+  const users = initSystem();
+  const user = users.find(u => u.username === username && u.password === password);
+  
+  if (!user) {
+    document.getElementById("loginError").style.display = "block";
+    return;
+  }
+
+  // 检查账号状态
+  if (user.status === "pending") {
+    document.getElementById("loginError").innerText = "账号未审核通过，请联系管理员";
+    document.getElementById("loginError").style.display = "block";
+    return;
+  }
+  if (user.status === "disabled") {
+    document.getElementById("loginError").innerText = "账号已被禁用，请联系管理员";
+    document.getElementById("loginError").style.display = "block";
+    return;
+  }
+
+  // 登录成功，保存当前用户信息
+  localStorage.setItem("current_login_user", JSON.stringify(user));
+  // 进入管理页
+  showManagePage(user);
+}
+
+// 注册处理
+function handleRegister() {
+  clearAllTips();
+  const username = document.getElementById("regUser").value.trim();
+  const password = document.getElementById("regPwd").value.trim();
+  const qq = document.getElementById("regQq").value.trim();
+  
+  // 校验必填项
+  if (!username || !password || !qq) {
+    document.getElementById("regError").innerText = "请填写所有必填信息";
+    document.getElementById("regError").style.display = "block";
+    return;
+  }
+
+  // 校验用户名格式（仅字母/数字）
+  if (!/^[a-zA-Z0-9]+$/.test(username)) {
+    document.getElementById("regError").innerText = "用户名仅支持字母和数字";
+    document.getElementById("regError").style.display = "block";
+    return;
+  }
+
+  // 校验QQ格式（仅数字）
+  if (!/^\d{5,13}$/.test(qq)) {
+    document.getElementById("regError").innerText = "QQ号格式错误（5-13位数字）";
+    document.getElementById("regError").style.display = "block";
+    return;
+  }
+
+  const users = initSystem();
+  // 检查用户名是否重复
+  if (users.some(u => u.username === username)) {
+    document.getElementById("regError").innerText = "用户名已存在，请更换";
+    document.getElementById("regError").style.display = "block";
+    return;
+  }
+
+  // 添加新用户（默认待审核状态）
+  users.push({
+    username,
+    password,
+    qq,
+    isSuper: false,
+    status: "pending"
+  });
+  localStorage.setItem("sys_users", JSON.stringify(users));
+
+  // 显示成功提示，1.5秒后返回登录页
+  document.getElementById("regSuccess").style.display = "block";
+  setTimeout(switchToLogin, 1500);
+}
+
+// 找回密码处理
+function handleFindPwd() {
+  clearAllTips();
+  const username = document.getElementById("findUser").value.trim();
+  const qq = document.getElementById("findQq").value.trim();
+  const newPwd = document.getElementById("findNewPwd").value.trim();
+  
+  if (!username || !qq || !newPwd) {
+    document.getElementById("findError").innerText = "请填写所有信息";
+    document.getElementById("findError").style.display = "block";
+    return;
+  }
+
+  const users = initSystem();
+  const user = users.find(u => u.username === username && u.qq === qq);
+  
+  if (!user) {
+    document.getElementById("findError").innerText = "用户名或QQ号不匹配";
+    document.getElementById("findError").style.display = "block";
+    return;
+  }
+
+  // 重置密码
+  user.password = newPwd;
+  localStorage.setItem("sys_users", JSON.stringify(users));
+
+  document.getElementById("findSuccess").style.display = "block";
+  setTimeout(switchToLogin, 1500);
+}
+
+// 修改密码处理
+function handleChangePwd() {
+  clearAllTips();
+  const oldPwd = document.getElementById("oldPwd").value.trim();
+  const newPwd = document.getElementById("newPwd").value.trim();
+  const confirmPwd = document.getElementById("confirmPwd").value.trim();
+  
+  const currentUser = JSON.parse(localStorage.getItem("current_login_user"));
+  const users = initSystem();
+
+  // 校验旧密码
+  if (oldPwd !== currentUser.password) {
+    document.getElementById("changePwdError").innerText = "旧密码错误";
+    document.getElementById("changePwdError").style.display = "block";
+    return;
+  }
+
+  // 校验新密码一致性
+  if (newPwd !== confirmPwd) {
+    document.getElementById("changePwdError").innerText = "两次输入的新密码不一致";
+    document.getElementById("changePwdError").style.display = "block";
+    return;
+  }
+
+  // 校验新密码长度
+  if (newPwd.length < 6) {
+    document.getElementById("changePwdError").innerText = "新密码长度不能少于6位";
+    document.getElementById("changePwdError").style.display = "block";
+    return;
+  }
+
+  // 更新密码
+  const userIndex = users.findIndex(u => u.username === currentUser.username);
+  users[userIndex].password = newPwd;
+  localStorage.setItem("sys_users", JSON.stringify(users));
+
+  // 更新当前登录用户的密码
+  currentUser.password = newPwd;
+  localStorage.setItem("current_login_user", JSON.stringify(currentUser));
+
+  document.getElementById("changePwdSuccess").style.display = "block";
+  // 清空输入框
+  document.getElementById("oldPwd").value = "";
+  document.getElementById("newPwd").value = "";
+  document.getElementById("confirmPwd").value = "";
+}
+
+// 退出登录
+function handleLogout() {
+  localStorage.removeItem("current_login_user");
+  location.reload();
+}
+
+// 显示管理页面
+function showManagePage(user) {
+  hideAllAuthBoxes();
+  document.getElementById("managePage").style.display = "block";
+
+  // 填充用户信息
+  document.getElementById("currentUser").innerText = user.username;
+  document.getElementById("currentQq").innerText = user.qq;
+  
+  // 设置账号状态标签
+  let statusTag = "";
+  if (user.status === "approved") statusTag = "<span class='status-tag status-approved'>已通过</span>";
+  else if (user.status === "pending") statusTag = "<span class='status-tag status-pending'>待审核</span>";
+  else if (user.status === "disabled") statusTag = "<span class='status-tag status-disabled'>已禁用</span>";
+  document.getElementById("currentStatus").innerHTML = statusTag;
+
+  // 显示专属多仓地址
+  const multiUrl = `${WORKER}/${user.username}_multi.json`;
+  document.getElementById("myMultiUrl").innerText = multiUrl;
+
+  // 超级管理员显示用户管理模块
+  if (user.isSuper) {
+    document.getElementById("userManageCard").style.display = "block";
+    loadUserList();
+  }
+
+  // 初始化接口管理（带编辑和数量功能）
+  initApiManager(user.username);
+}
+
+// 加载用户列表（超级管理员）
+function loadUserList() {
+  const users = initSystem();
+  const searchKey = document.getElementById("searchUser").value.trim().toLowerCase();
+  const statusFilter = document.getElementById("statusFilter").value;
+  
+  // 筛选用户
+  const filteredUsers = users.filter(user => {
+    const matchSearch = user.username.toLowerCase().includes(searchKey) || user.qq.includes(searchKey);
+    const matchStatus = statusFilter === "all" || user.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const tableBody = document.getElementById("userTableBody");
+  if (filteredUsers.length === 0) {
+    tableBody.innerHTML = "<tr><td colspan='4' style='text-align:center;color:#999'>暂无符合条件的用户</td></tr>";
+    return;
+  }
+
+  // 渲染用户表格
+  tableBody.innerHTML = filteredUsers.map(user => {
+    // 状态标签
+    let statusTag = "";
+    if (user.status === "pending") statusTag = "<span class='status-tag status-pending'>待审核</span>";
+    else if (user.status === "approved") statusTag = "<span class='status-tag status-approved'>已通过</span>";
+    else if (user.status === "disabled") statusTag = "<span class='status-tag status-disabled'>已禁用</span>";
+
+    // 操作按钮（超级管理员不可操作自己）
+    let actions = "";
+    if (user.username === SUPER_ADMIN) {
+      actions = "<span style='color:#999'>不可操作</span>";
+    } else {
+      actions = `
+        <button class="btn-sm btn-save" onclick="updateUserStatus('${user.username}', 'approved')">通过</button>
+        <button class="btn-sm btn-toggle" onclick="updateUserStatus('${user.username}', 'disabled')">禁用</button>
+        <button class="btn-sm btn-reset" onclick="resetUserPwd('${user.username}')">重置密码</button>
+      `;
+    }
+
+    return `
+      <tr>
+        <td>${user.username}</td>
+        <td>${user.qq}</td>
+        <td>${statusTag}</td>
+        <td>${actions}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+// 更新用户状态（通过/禁用）
+function updateUserStatus(username, status) {
+  const users = initSystem();
+  const userIndex = users.findIndex(u => u.username === username);
+  if (userIndex === -1) return;
+
+  users[userIndex].status = status;
+  localStorage.setItem("sys_users", JSON.stringify(users));
+  loadUserList();
+  alert(`用户「${username}」已${status === 'approved' ? '审核通过' : '禁用'}`);
+}
+
+// 重置用户密码
+function resetUserPwd(username) {
+  const newPwd = prompt(`请输入用户「${username}」的新密码（默认：123456）：`, "123456");
+  if (newPwd === null || newPwd.trim() === "") return;
+
+  const users = initSystem();
+  const userIndex = users.findIndex(u => u.username === username);
+  if (userIndex === -1) return;
+
+  users[userIndex].password = newPwd.trim();
+  localStorage.setItem("sys_users", JSON.stringify(users));
+  alert(`用户「${username}」密码已重置为：${newPwd.trim()}`);
+}
+
+// 初始化接口管理器（带编辑和数量功能）
+function initApiManager(username) {
+  const apiListEl = document.getElementById("apiList");
+  const apiCountEl = document.getElementById("apiCount");
+  let currentApiList = []; // 保存当前接口列表
+
+  // 加载接口列表
+  async function loadApiList() {
+    try {
+      const response = await fetch(`${WORKER}/${username}_multi.json?t=${Date.now()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      const data = await response.json();
+      currentApiList = data.urls || [];
+      renderApiList(currentApiList);
+    } catch (e) {
+      apiListEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:20px">加载接口失败：${e.message}</div>`;
+      console.error("加载接口失败：", e);
+    }
+  }
+
+  // 渲染接口列表（带编辑按钮+数量显示）
+  function renderApiList(apiList) {
+    // 更新接口数量
+    apiCountEl.innerText = `(${apiList.length})`;
+
+    if (apiList.length === 0) {
+      apiListEl.innerHTML = `<div style="text-align:center;color:#999;padding:20px">暂无专属接口，点击「添加接口」创建</div>`;
+      return;
+    }
+
+    apiListEl.innerHTML = apiList.map((api, idx) => `
+      <div class="api-item">
+        <div class="content">
+          <div class="name">${api.name}</div>
+          <div class="desc">${api.url}</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-sm btn-save" onclick="editApi(${idx})">编辑</button>
+          <button class="btn-sm btn-del" onclick="deleteApi(${idx})">删除</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // 添加接口
+  window.addApi = async function() {
+    const name = document.getElementById("apiName").value.trim();
+    const url = document.getElementById("apiUrl").value.trim();
+    
+    if (!name || !url) {
+      alert("请填写接口名称和URL");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${WORKER}/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, name, url })
+      });
+      const result = await response.json();
+      if (result.success) {
+        document.getElementById("apiName").value = "";
+        document.getElementById("apiUrl").value = "";
+        loadApiList();
+        alert("接口添加成功");
+      } else {
+        alert("添加失败：" + result.msg);
+      }
+    } catch (e) {
+      alert("添加接口失败：" + e.message);
+      console.error("添加接口失败：", e);
+    }
+  };
+
+  // 编辑接口（修改名称和URL）
+  window.editApi = function(idx) {
+    const api = currentApiList[idx];
+    if (!api) return;
+
+    // 弹出输入框修改名称和URL
+    const newName = prompt("请输入新的接口名称：", api.name);
+    if (newName === null) return; // 用户取消
+    
+    const newUrl = prompt("请输入新的接口URL：", api.url);
+    if (newUrl === null) return; // 用户取消
+
+    if (!newName.trim() || !newUrl.trim()) {
+      alert("接口名称和URL不能为空！");
+      return;
+    }
+
+    // 先删除旧接口，再添加新接口（模拟编辑）
+    (async () => {
+      try {
+        // 1. 删除旧接口
+        await fetch(`${WORKER}/delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username, index: idx })
+        });
+
+        // 2. 添加新接口
+        await fetch(`${WORKER}/add`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username, name: newName.trim(), url: newUrl.trim() })
+        });
+
+        // 3. 重新加载列表
+        loadApiList();
+        alert("接口修改成功！");
+      } catch (e) {
+        alert("修改接口失败：" + e.message);
+        console.error("修改接口失败：", e);
+      }
+    })();
+  };
+
+  // 删除接口
+  window.deleteApi = async function(idx) {
+    if (!confirm("确定删除该接口吗？删除后无法恢复")) return;
+
+    try {
+      const response = await fetch(`${WORKER}/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, index: idx })
+      });
+      const result = await response.json();
+      if (result.success) {
+        loadApiList();
+        alert("接口删除成功");
+      } else {
+        alert("删除失败：" + result.msg);
+      }
+    } catch (e) {
+      alert("删除接口失败：" + e.message);
+      console.error("删除接口失败：", e);
+    }
+  };
+
+  // 初始化加载接口列表
+  loadApiList();
+}
+
+// 页面加载初始化
+window.onload = function() {
+  initSystem();
+  // 检查登录状态
+  const currentUser = localStorage.getItem("current_login_user");
+  if (currentUser) {
+    showManagePage(JSON.parse(currentUser));
+  } else {
+    switchToLogin();
+  }
+};
+</script>
+</body>
+</html>
